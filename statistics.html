@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics - RoadWatch</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="dashboard.html" class="nav-brand">
+                <i class="fas fa-car-side"></i>
+                RoadWatch
+            </a>
+            
+            <button class="mobile-toggle" onclick="document.getElementById('navMenu').classList.toggle('active')">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="nav-menu" id="navMenu">
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="map.html" class="nav-link">
+                    <i class="fas fa-map-marked-alt"></i> Crime Map
+                </a>
+                <a href="search.html" class="nav-link">
+                    <i class="fas fa-search"></i> Search
+                </a>
+                <a href="statistics.html" class="nav-link active">
+                    <i class="fas fa-chart-bar"></i> Statistics
+                </a>
+                <a href="incidents.html" class="nav-link">
+                    <i class="fas fa-exclamation-triangle"></i> Incidents
+                </a>
+                <a href="report.html" class="nav-link">
+                    <i class="fas fa-pen"></i> Report
+                </a>
+            </div>
+            
+            <div class="nav-user">
+                <span class="user-email" id="userEmail"></span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-chart-bar"></i> 
+                Statistics
+            </h1>
+            <p>Crime data analysis and trends</p>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" style="text-align:center; padding:40px;">
+            <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#ef4444;"></i>
+            <p style="margin-top:10px; color:#64748b;">Loading statistics...</p>
+        </div>
+
+        <!-- Summary Stats -->
+        <div id="statsSummary" style="display:none;" class="summary-cards"></div>
+
+        <!-- Charts -->
+        <div id="chartsSection" style="display:none;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:20px;">
+                <div class="card">
+                    <h3 style="margin-bottom:16px;"><i class="fas fa-tag" style="color:#ef4444;"></i> Incidents by Crime Type</h3>
+                    <canvas id="crimeTypeChart"></canvas>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin-bottom:16px;"><i class="fas fa-flag" style="color:#f59e0b;"></i> Incidents by Severity</h3>
+                    <canvas id="severityChart"></canvas>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin-bottom:16px;"><i class="fas fa-map-pin" style="color:#3b82f6;"></i> Top Suburbs</h3>
+                    <canvas id="suburbChart"></canvas>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin-bottom:16px;"><i class="fas fa-car" style="color:#10b981;"></i> Top Vehicle Makes</h3>
+                    <canvas id="vehicleChart"></canvas>
+                </div>
+                
+                <div class="card" style="grid-column: 1/-1;">
+                    <h3 style="margin-bottom:16px;"><i class="fas fa-calendar" style="color:#8b5cf6;"></i> Incidents Over Time</h3>
+                    <canvas id="timeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script>
+        window.supabaseClient.auth.getSession().then(function(result) {
+            if (!result.data.session) {
+                window.location.href = 'login.html';
+            } else {
+                document.getElementById('userEmail').textContent = result.data.session.user.email;
+                loadStatistics();
+            }
+        });
+
+        function logout() {
+            window.supabaseClient.auth.signOut().then(function() {
+                window.location.href = 'login.html';
+            });
+        }
+
+        async function loadStatistics() {
+            try {
+                var result = await window.supabaseClient
+                    .from('roadwatch_incidents')
+                    .select('*')
+                    .order('incident_date', { ascending: true });
+                
+                if (result.error) throw result.error;
+                
+                var incidents = result.data || [];
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('statsSummary').style.display = 'grid';
+                document.getElementById('chartsSection').style.display = 'block';
+                
+                renderSummary(incidents);
+                renderCrimeTypeChart(incidents);
+                renderSeverityChart(incidents);
+                renderSuburbChart(incidents);
+                renderVehicleChart(incidents);
+                renderTimeChart(incidents);
+                
+            } catch (error) {
+                document.getElementById('loading').innerHTML = 
+                    '<p style="color:#ef4444;">Error: ' + error.message + '</p>';
+            }
+        }
+
+        function renderSummary(incidents) {
+            var total = incidents.length;
+            var high = incidents.filter(function(i) { return i.incident_severity === 'High'; }).length;
+            var verified = incidents.filter(function(i) { return i.verification_status === 'Verified'; }).length;
+            var suburbs = {};
+            incidents.forEach(function(i) { if (i.suburb) suburbs[i.suburb] = true; });
+            
+            document.getElementById('statsSummary').innerHTML = 
+                '<div class="summary-card"><div class="card-icon red"><i class="fas fa-list"></i></div><h3>Total Incidents</h3><p>' + total + '</p></div>' +
+                '<div class="summary-card"><div class="card-icon yellow"><i class="fas fa-exclamation-triangle"></i></div><h3>High Severity</h3><p>' + high + '</p></div>' +
+                '<div class="summary-card"><div class="card-icon blue"><i class="fas fa-check-circle"></i></div><h3>Verified</h3><p>' + verified + '</p></div>' +
+                '<div class="summary-card"><div class="card-icon green"><i class="fas fa-city"></i></div><h3>Suburbs</h3><p>' + Object.keys(suburbs).length + '</p></div>';
+        }
+
+        function renderCrimeTypeChart(incidents) {
+            var counts = {};
+            incidents.forEach(function(i) {
+                var type = i.crime_type || 'Unknown';
+                counts[type] = (counts[type] || 0) + 1;
+            });
+            
+            var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+            
+            new Chart(document.getElementById('crimeTypeChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: sorted.map(function(item) { return item[0]; }),
+                    datasets: [{
+                        data: sorted.map(function(item) { return item[1]; }),
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function renderSeverityChart(incidents) {
+            var counts = { High: 0, Medium: 0, Low: 0 };
+            incidents.forEach(function(i) {
+                if (i.incident_severity && counts.hasOwnProperty(i.incident_severity)) {
+                    counts[i.incident_severity]++;
+                }
+            });
+            
+            new Chart(document.getElementById('severityChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(counts),
+                    datasets: [{
+                        label: 'Incidents',
+                        data: Object.values(counts),
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function renderSuburbChart(incidents) {
+            var counts = {};
+            incidents.forEach(function(i) {
+                var suburb = i.suburb || 'Unknown';
+                counts[suburb] = (counts[suburb] || 0) + 1;
+            });
+            
+            var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+            
+            new Chart(document.getElementById('suburbChart'), {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(function(item) { return item[0]; }),
+                    datasets: [{
+                        label: 'Incidents',
+                        data: sorted.map(function(item) { return item[1]; }),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function renderVehicleChart(incidents) {
+            var counts = {};
+            incidents.forEach(function(i) {
+                var make = i.car_make || 'Unknown';
+                counts[make] = (counts[make] || 0) + 1;
+            });
+            
+            var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+            
+            new Chart(document.getElementById('vehicleChart'), {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(function(item) { return item[0]; }),
+                    datasets: [{
+                        label: 'Incidents',
+                        data: sorted.map(function(item) { return item[1]; }),
+                        backgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function renderTimeChart(incidents) {
+            var monthly = {};
+            incidents.forEach(function(i) {
+                if (i.incident_date) {
+                    var date = new Date(i.incident_date);
+                    var key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                    monthly[key] = (monthly[key] || 0) + 1;
+                }
+            });
+            
+            var sorted = Object.entries(monthly).sort();
+            
+            new Chart(document.getElementById('timeChart'), {
+                type: 'line',
+                data: {
+                    labels: sorted.map(function(item) { return item[0]; }),
+                    datasets: [{
+                        label: 'Incidents',
+                        data: sorted.map(function(item) { return item[1]; }),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139,92,246,0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

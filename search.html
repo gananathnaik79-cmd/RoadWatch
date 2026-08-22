@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search - RoadWatch</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="dashboard.html" class="nav-brand">
+                <i class="fas fa-car-side"></i>
+                RoadWatch
+            </a>
+            
+            <button class="mobile-toggle" onclick="document.getElementById('navMenu').classList.toggle('active')">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="nav-menu" id="navMenu">
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="map.html" class="nav-link">
+                    <i class="fas fa-map-marked-alt"></i> Crime Map
+                </a>
+                <a href="search.html" class="nav-link active">
+                    <i class="fas fa-search"></i> Search
+                </a>
+                <a href="statistics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i> Statistics
+                </a>
+                <a href="incidents.html" class="nav-link">
+                    <i class="fas fa-exclamation-triangle"></i> Incidents
+                </a>
+                <a href="report.html" class="nav-link">
+                    <i class="fas fa-pen"></i> Report
+                </a>
+            </div>
+            
+            <div class="nav-user">
+                <span class="user-email" id="userEmail"></span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-search"></i> 
+                Search & Filters
+            </h1>
+            <p>Find incidents by various criteria</p>
+        </div>
+
+        <!-- Search Filters -->
+        <div class="card">
+            <div class="form-row">
+                <div class="form-group">
+                    <label><i class="fas fa-search"></i> Search Text</label>
+                    <input type="text" id="searchText" class="form-control" placeholder="Search by any keyword...">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label><i class="fas fa-tag"></i> Crime Type</label>
+                    <select id="crimeType" class="form-control">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-flag"></i> Severity</label>
+                    <select id="severity" class="form-control">
+                        <option value="">All Severities</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label><i class="fas fa-building"></i> Council Area</label>
+                    <input type="text" id="councilArea" class="form-control" placeholder="Enter council area">
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-map-pin"></i> Suburb</label>
+                    <input type="text" id="suburb" class="form-control" placeholder="Enter suburb">
+                </div>
+            </div>
+            
+            <div class="form-actions" style="margin-top:20px; display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="searchIncidents()">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <button class="btn btn-secondary" onclick="clearFilters()">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsCount" style="display:none; margin:20px 0; color:#64748b; font-weight:500;">
+            <i class="fas fa-list"></i> <span id="countText"></span>
+        </div>
+        
+        <div id="results" class="results-container"></div>
+    </main>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script>
+        var allIncidents = [];
+
+        window.supabaseClient.auth.getSession().then(function(result) {
+            if (!result.data.session) {
+                window.location.href = 'login.html';
+            } else {
+                document.getElementById('userEmail').textContent = result.data.session.user.email;
+                loadFilters();
+            }
+        });
+
+        function logout() {
+            window.supabaseClient.auth.signOut().then(function() {
+                window.location.href = 'login.html';
+            });
+        }
+
+        async function loadFilters() {
+            var result = await window.supabaseClient.from('roadwatch_incidents')
+                .select('crime_type')
+                .limit(1000);
+            
+            if (result.data) {
+                var types = {};
+                result.data.forEach(function(i) {
+                    if (i.crime_type) types[i.crime_type] = true;
+                });
+                
+                var select = document.getElementById('crimeType');
+                Object.keys(types).forEach(function(type) {
+                    var option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        async function searchIncidents() {
+            var resultsContainer = document.getElementById('results');
+            var resultsCount = document.getElementById('resultsCount');
+            var countText = document.getElementById('countText');
+            
+            var searchText = document.getElementById('searchText').value.toLowerCase();
+            var crimeType = document.getElementById('crimeType').value;
+            var severity = document.getElementById('severity').value;
+            var councilArea = document.getElementById('councilArea').value.toLowerCase();
+            var suburb = document.getElementById('suburb').value.toLowerCase();
+            
+            var result = await supabase
+                .from('roadwatch_incidents')
+                .select('*')
+                .order('incident_date', { ascending: false });
+            
+            var incidents = result.data || [];
+            
+            if (searchText) {
+                incidents = incidents.filter(function(i) {
+                    return JSON.stringify(i).toLowerCase().includes(searchText);
+                });
+            }
+            
+            if (crimeType) {
+                incidents = incidents.filter(function(i) { return i.crime_type === crimeType; });
+            }
+            
+            if (severity) {
+                incidents = incidents.filter(function(i) { return i.incident_severity === severity; });
+            }
+            
+            if (councilArea) {
+                incidents = incidents.filter(function(i) { 
+                    return i.council_area && i.council_area.toLowerCase().includes(councilArea); 
+                });
+            }
+            
+            if (suburb) {
+                incidents = incidents.filter(function(i) { 
+                    return i.suburb && i.suburb.toLowerCase().includes(suburb); 
+                });
+            }
+            
+            resultsCount.style.display = 'block';
+            countText.textContent = incidents.length + ' incident(s) found';
+            
+            if (incidents.length === 0) {
+                resultsContainer.innerHTML = '<p style="color:#64748b; text-align:center; padding:40px;">No incidents found</p>';
+                return;
+            }
+            
+            var html = '';
+            incidents.forEach(function(i) {
+                html += '<div class="result-card" onclick="viewIncident(\'' + i.incident_id + '\')">';
+                html += '<h3 style="margin-bottom:8px;"><i class="fas fa-tag" style="color:#ef4444;"></i> ' + (i.crime_type || 'Unknown') + '</h3>';
+                html += '<p><i class="fas fa-calendar"></i> ' + (i.incident_date || 'N/A') + '</p>';
+                html += '<p><i class="fas fa-map-pin"></i> ' + (i.suburb || 'N/A') + ', ' + (i.council_area || 'N/A') + '</p>';
+                html += '<p><i class="fas fa-car"></i> ' + (i.car_make || 'N/A') + ' ' + (i.car_model || '') + '</p>';
+                html += '</div>';
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        function clearFilters() {
+            document.getElementById('searchText').value = '';
+            document.getElementById('crimeType').value = '';
+            document.getElementById('severity').value = '';
+            document.getElementById('councilArea').value = '';
+            document.getElementById('suburb').value = '';
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('resultsCount').style.display = 'none';
+        }
+
+        function viewIncident(id) {
+            window.location.href = 'incidents.html?incident=' + id;
+        }
+    </script>
+</body>
+</html>

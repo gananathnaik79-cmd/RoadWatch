@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Explorer - RoadWatch</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="dashboard.html" class="nav-brand">
+                <i class="fas fa-car-side"></i>
+                RoadWatch
+            </a>
+            
+            <button class="mobile-toggle" onclick="document.getElementById('navMenu').classList.toggle('active')">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="nav-menu" id="navMenu">
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="map.html" class="nav-link">
+                    <i class="fas fa-map-marked-alt"></i> Crime Map
+                </a>
+                <a href="search.html" class="nav-link">
+                    <i class="fas fa-search"></i> Search
+                </a>
+                <a href="statistics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i> Statistics
+                </a>
+                <a href="incidents.html" class="nav-link active">
+                    <i class="fas fa-exclamation-triangle"></i> Incidents
+                </a>
+                <a href="report.html" class="nav-link">
+                    <i class="fas fa-pen"></i> Report
+                </a>
+            </div>
+            
+            <div class="nav-user">
+                <span class="user-email" id="userEmail"></span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-exclamation-triangle"></i> 
+                Incident Explorer
+            </h1>
+            <p>Browse all reported incidents</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="card" style="margin-bottom:20px;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="text" id="searchInput" class="form-control" style="flex:1; min-width:200px;" placeholder="Search incidents..." onkeyup="filterIncidents()">
+                <select id="sortSelect" class="form-control" style="max-width:200px;" onchange="sortIncidents()">
+                    <option value="date_desc">Newest First</option>
+                    <option value="date_asc">Oldest First</option>
+                    <option value="severity">By Severity</option>
+                    <option value="type">By Crime Type</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Incidents List -->
+        <div id="incidentsList" class="results-container"></div>
+
+        <!-- Pagination -->
+        <div id="pagination" style="display:flex; justify-content:center; gap:10px; margin-top:20px;"></div>
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/config.js"></script>
+    <script>
+        var allIncidents = [];
+        var currentPage = 1;
+        var itemsPerPage = 12;
+
+        window.supabaseClient.auth.getSession().then(function(result) {
+            if (!result.data.session) {
+                window.location.href = 'login.html';
+            } else {
+                document.getElementById('userEmail').textContent = result.data.session.user.email;
+                loadIncidents();
+            }
+        });
+
+        function logout() {
+            window.supabaseClient.auth.signOut().then(function() {
+                window.location.href = 'login.html';
+            });
+        }
+
+        async function loadIncidents() {
+            var result = await window.supabaseClient
+                .from('roadwatch_incidents')
+                .select('*')
+                .order('incident_date', { ascending: false });
+            
+            allIncidents = result.data || [];
+            displayIncidents();
+            
+            // Check for incident ID in URL
+            var params = new URLSearchParams(window.location.search);
+            var incidentId = params.get('incident');
+            if (incidentId) {
+                var incident = allIncidents.find(function(i) { return i.incident_id === incidentId; });
+                if (incident) showDetail(incident);
+            }
+        }
+
+        function displayIncidents() {
+            var container = document.getElementById('incidentsList');
+            var totalPages = Math.ceil(allIncidents.length / itemsPerPage);
+            var start = (currentPage - 1) * itemsPerPage;
+            var end = start + itemsPerPage;
+            var pageIncidents = allIncidents.slice(start, end);
+            
+            if (pageIncidents.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#64748b; padding:40px;">No incidents found</p>';
+            } else {
+                var html = '';
+                pageIncidents.forEach(function(i) {
+                    html += '<div class="result-card" onclick="showDetailById(\'' + i.incident_id + '\')">';
+                    html += '<div style="margin-bottom:8px;">';
+                    html += getSeverityBadge(i.incident_severity);
+                    html += ' ' + getStatusBadge(i.verification_status);
+                    html += '</div>';
+                    html += '<h3>' + (i.crime_type || 'Unknown') + '</h3>';
+                    html += '<p><i class="fas fa-calendar"></i> ' + (i.incident_date || 'N/A') + '</p>';
+                    html += '<p><i class="fas fa-map-pin"></i> ' + (i.suburb || 'N/A') + '</p>';
+                    html += '<p><i class="fas fa-car"></i> ' + (i.car_make || 'N/A') + ' ' + (i.car_model || '') + '</p>';
+                    html += '</div>';
+                });
+                container.innerHTML = html;
+            }
+            
+            renderPagination(totalPages);
+        }
+
+        function renderPagination(totalPages) {
+            var container = document.getElementById('pagination');
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            var html = '';
+            html += '<button class="btn btn-secondary btn-sm" onclick="changePage(' + (currentPage - 1) + ')" ' + (currentPage === 1 ? 'disabled' : '') + '><i class="fas fa-chevron-left"></i></button>';
+            
+            for (var i = 1; i <= totalPages; i++) {
+                html += '<button class="btn ' + (i === currentPage ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="changePage(' + i + ')">' + i + '</button>';
+            }
+            
+            html += '<button class="btn btn-secondary btn-sm" onclick="changePage(' + (currentPage + 1) + ')" ' + (currentPage === totalPages ? 'disabled' : '') + '><i class="fas fa-chevron-right"></i></button>';
+            
+            container.innerHTML = html;
+        }
+
+        function changePage(page) {
+            var totalPages = Math.ceil(allIncidents.length / itemsPerPage);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            displayIncidents();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function filterIncidents() {
+            var searchText = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (!searchText) {
+                loadIncidents();
+                return;
+            }
+            
+            var filtered = allIncidents.filter(function(i) {
+                return JSON.stringify(i).toLowerCase().includes(searchText);
+            });
+            
+            var original = allIncidents;
+            allIncidents = filtered;
+            currentPage = 1;
+            displayIncidents();
+            allIncidents = original;
+        }
+
+        function sortIncidents() {
+            var sortBy = document.getElementById('sortSelect').value;
+            
+            switch(sortBy) {
+                case 'date_desc':
+                    allIncidents.sort(function(a, b) { return new Date(b.incident_date) - new Date(a.incident_date); });
+                    break;
+                case 'date_asc':
+                    allIncidents.sort(function(a, b) { return new Date(a.incident_date) - new Date(b.incident_date); });
+                    break;
+                case 'severity':
+                    var order = { High: 1, Medium: 2, Low: 3 };
+                    allIncidents.sort(function(a, b) { return (order[a.incident_severity] || 4) - (order[b.incident_severity] || 4); });
+                    break;
+                case 'type':
+                    allIncidents.sort(function(a, b) { return (a.crime_type || '').localeCompare(b.crime_type || ''); });
+                    break;
+            }
+            
+            currentPage = 1;
+            displayIncidents();
+        }
+
+        function showDetailById(id) {
+            var incident = allIncidents.find(function(i) { return i.incident_id === id; });
+            if (incident) showDetail(incident);
+        }
+
+        function showDetail(incident) {
+            var modal = document.getElementById('detailModal');
+            var content = document.getElementById('detailContent');
+            
+            var html = '<h2 style="margin-bottom:20px;">' + (incident.crime_type || 'Unknown') + '</h2>';
+            html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">';
+            html += '<div><strong>Incident ID:</strong> ' + (incident.incident_id || 'N/A') + '</div>';
+            html += '<div><strong>Date:</strong> ' + (incident.incident_date || 'N/A') + '</div>';
+            html += '<div><strong>Category:</strong> ' + (incident.vehicle_crime_category || 'N/A') + '</div>';
+            html += '<div><strong>Severity:</strong> ' + (incident.incident_severity || 'N/A') + '</div>';
+            html += '<div><strong>Council Area:</strong> ' + (incident.council_area || 'N/A') + '</div>';
+            html += '<div><strong>Suburb:</strong> ' + (incident.suburb || 'N/A') + '</div>';
+            html += '<div><strong>Postcode:</strong> ' + (incident.postcode || 'N/A') + '</div>';
+            html += '<div><strong>Vehicle:</strong> ' + (incident.car_make || 'N/A') + ' ' + (incident.car_model || '') + ' ' + (incident.car_year || '') + '</div>';
+            html += '<div><strong>Status:</strong> ' + (incident.verification_status || 'N/A') + '</div>';
+            html += '<div><strong>Source:</strong> ' + (incident.source_type || 'N/A') + '</div>';
+            html += '</div>';
+            
+            if (incident.description) {
+                html += '<h3 style="margin:16px 0 8px;">Description</h3><p>' + incident.description + '</p>';
+            }
+            
+            if (incident.notes) {
+                html += '<h3 style="margin:16px 0 8px;">Notes</h3><p>' + incident.notes + '</p>';
+            }
+            
+            if (incident.latitude && incident.longitude) {
+                html += '<div id="detailMap" style="height:300px; margin-top:16px; border-radius:12px;"></div>';
+            }
+            
+            content.innerHTML = html;
+            modal.style.display = 'block';
+            
+            if (incident.latitude && incident.longitude) {
+                setTimeout(function() {
+                    var map = L.map('detailMap').setView([incident.latitude, incident.longitude], 15);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                    L.marker([incident.latitude, incident.longitude]).addTo(map);
+                }, 100);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        function getSeverityBadge(severity) {
+            if (!severity) return '<span class="badge badge-low">Unknown</span>';
+            switch(severity.toLowerCase()) {
+                case 'high': return '<span class="badge badge-high">High</span>';
+                case 'medium': return '<span class="badge badge-medium">Medium</span>';
+                default: return '<span class="badge badge-low">Low</span>';
+            }
+        }
+
+        function getStatusBadge(status) {
+            if (!status) return '<span class="badge badge-pending">Pending</span>';
+            switch(status.toLowerCase()) {
+                case 'verified': return '<span class="badge badge-verified">Verified</span>';
+                default: return '<span class="badge badge-pending">Pending</span>';
+            }
+        }
+
+        window.onclick = function(event) {
+            var modal = document.getElementById('detailModal');
+            if (event.target === modal) modal.style.display = 'none';
+        };
+    </script>
+</body>
+</html>

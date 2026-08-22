@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Incident - RoadWatch</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="dashboard.html" class="nav-brand">
+                <i class="fas fa-car-side"></i>
+                RoadWatch
+            </a>
+            
+            <button class="mobile-toggle" onclick="document.getElementById('navMenu').classList.toggle('active')">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="nav-menu" id="navMenu">
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="map.html" class="nav-link">
+                    <i class="fas fa-map-marked-alt"></i> Crime Map
+                </a>
+                <a href="search.html" class="nav-link">
+                    <i class="fas fa-search"></i> Search
+                </a>
+                <a href="statistics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i> Statistics
+                </a>
+                <a href="incidents.html" class="nav-link">
+                    <i class="fas fa-exclamation-triangle"></i> Incidents
+                </a>
+                <a href="report.html" class="nav-link active">
+                    <i class="fas fa-pen"></i> Report
+                </a>
+            </div>
+            
+            <div class="nav-user">
+                <span class="user-email" id="userEmail"></span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-pen"></i> 
+                Report Incident
+            </h1>
+            <p>Submit a new vehicle crime incident</p>
+        </div>
+
+        <div class="card">
+            <form id="reportForm">
+                <h3 style="margin-bottom:16px;"><i class="fas fa-info-circle" style="color:#ef4444;"></i> Incident Details</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar"></i> Incident Date *</label>
+                        <input type="date" id="incidentDate" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-tag"></i> Crime Type *</label>
+                        <select id="crimeType" class="form-control" required>
+                            <option value="">Select Crime Type</option>
+                            <option value="Vehicle Theft">Vehicle Theft</option>
+                            <option value="Theft from Vehicle">Theft from Vehicle</option>
+                            <option value="Vehicle Damage">Vehicle Damage</option>
+                            <option value="Carjacking">Carjacking</option>
+                            <option value="Attempted Theft">Attempted Theft</option>
+                            <option value="Vehicle Arson">Vehicle Arson</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-folder"></i> Vehicle Crime Category *</label>
+                        <select id="vehicleCategory" class="form-control" required>
+                            <option value="">Select Category</option>
+                            <option value="Theft">Theft</option>
+                            <option value="Damage">Damage</option>
+                            <option value="Break-in">Break-in</option>
+                            <option value="Vandalism">Vandalism</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-flag"></i> Incident Severity *</label>
+                        <select id="severity" class="form-control" required>
+                            <option value="">Select Severity</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <h3 style="margin:24px 0 16px;"><i class="fas fa-map-pin" style="color:#3b82f6;"></i> Location Details</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-building"></i> Council Area *</label>
+                        <input type="text" id="councilArea" class="form-control" placeholder="Enter council area" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-map-pin"></i> Suburb *</label>
+                        <input type="text" id="suburb" class="form-control" placeholder="Enter suburb" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-mailbox"></i> Postcode</label>
+                        <input type="number" id="postcode" class="form-control" placeholder="Enter postcode">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-location-dot"></i> Location Name</label>
+                        <input type="text" id="locationName" class="form-control" placeholder="Enter location name">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-globe"></i> Latitude</label>
+                        <input type="number" id="latitude" class="form-control" step="any" placeholder="e.g. -37.8136">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-globe"></i> Longitude</label>
+                        <input type="number" id="longitude" class="form-control" step="any" placeholder="e.g. 144.9631">
+                    </div>
+                </div>
+                
+                <h3 style="margin:24px 0 16px;"><i class="fas fa-car" style="color:#10b981;"></i> Vehicle Details</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-industry"></i> Vehicle Make</label>
+                        <input type="text" id="carMake" class="form-control" placeholder="e.g. Toyota">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-car"></i> Vehicle Model</label>
+                        <input type="text" id="carModel" class="form-control" placeholder="e.g. Corolla">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar"></i> Vehicle Year</label>
+                        <input type="number" id="carYear" class="form-control" min="1900" max="2025" placeholder="e.g. 2022">
+                    </div>
+                </div>
+                
+                <h3 style="margin:24px 0 16px;"><i class="fas fa-comment" style="color:#8b5cf6;"></i> Additional Information</h3>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-file"></i> Description</label>
+                    <textarea id="description" class="form-control" rows="4" placeholder="Describe the incident..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-sticky-note"></i> Notes</label>
+                    <textarea id="notes" class="form-control" rows="3" placeholder="Any additional notes..."></textarea>
+                </div>
+                
+                <div id="error-message" class="error-message" style="display:none;">
+                    <i class="fas fa-exclamation-circle"></i> <span id="errorText"></span>
+                </div>
+                
+                <div id="success-message" class="success-message" style="display:none;">
+                    <i class="fas fa-check-circle"></i> <span id="successText"></span>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block" id="submitButton">
+                    <i class="fas fa-paper-plane"></i> Submit Report
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script>
+        window.supabaseClient.auth.getSession().then(function(result) {
+            if (!result.data.session) {
+                window.location.href = 'login.html';
+            } else {
+                document.getElementById('userEmail').textContent = result.data.session.user.email;
+                setDefaultDate();
+            }
+        });
+
+        function logout() {
+            window.supabaseClient.auth.signOut().then(function() {
+                window.location.href = 'login.html';
+            });
+        }
+
+        function setDefaultDate() {
+            var today = new Date();
+            var formatted = today.toISOString().split('T')[0];
+            document.getElementById('incidentDate').value = formatted;
+            document.getElementById('incidentDate').max = formatted;
+        }
+
+        function generateIncidentId() {
+            var now = new Date();
+            var year = now.getFullYear();
+            var month = String(now.getMonth() + 1).padStart(2, '0');
+            var day = String(now.getDate()).padStart(2, '0');
+            var random = Math.random().toString(36).substring(2, 8).toUpperCase();
+            return 'RW-' + year + month + day + '-' + random;
+        }
+
+        document.getElementById('reportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            var errorDiv = document.getElementById('error-message');
+            var errorText = document.getElementById('errorText');
+            var successDiv = document.getElementById('success-message');
+            var successText = document.getElementById('successText');
+            var submitButton = document.getElementById('submitButton');
+            
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            
+            // Get values
+            var incidentDate = document.getElementById('incidentDate').value;
+            var crimeType = document.getElementById('crimeType').value;
+            var vehicleCategory = document.getElementById('vehicleCategory').value;
+            var severity = document.getElementById('severity').value;
+            var councilArea = document.getElementById('councilArea').value.trim();
+            var suburb = document.getElementById('suburb').value.trim();
+            
+            // Validate required fields
+            if (!incidentDate || !crimeType || !vehicleCategory || !severity || !councilArea || !suburb) {
+                errorDiv.style.display = 'block';
+                errorText.textContent = 'Please fill in all required fields';
+                return;
+            }
+            
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            
+            var incidentData = {
+                incident_id: generateIncidentId(),
+                incident_date: incidentDate,
+                crime_type: crimeType,
+                vehicle_crime_category: vehicleCategory,
+                incident_severity: severity,
+                council_area: councilArea,
+                suburb: suburb,
+                postcode: document.getElementById('postcode').value ? parseInt(document.getElementById('postcode').value) : null,
+                car_make: document.getElementById('carMake').value.trim() || null,
+                car_model: document.getElementById('carModel').value.trim() || null,
+                car_year: document.getElementById('carYear').value || null,
+                location_name: document.getElementById('locationName').value.trim() || null,
+                latitude: document.getElementById('latitude').value ? parseFloat(document.getElementById('latitude').value) : null,
+                longitude: document.getElementById('longitude').value ? parseFloat(document.getElementById('longitude').value) : null,
+                location_accuracy: 'user-reported',
+                pin_role: 'user',
+                source_type: 'User Report',
+                evidence_level: 0,
+                source_name: 'RoadWatch User',
+                source_url: null,
+                verification_status: 'Pending',
+                description: document.getElementById('description').value.trim() || null,
+                notes: document.getElementById('notes').value.trim() || null,
+                last_verified: null
+            };
+            
+            try {
+                var result = await window.supabaseClient
+                    .from('roadwatch_incidents')
+                    .insert([incidentData]);
+                
+                if (result.error) throw result.error;
+                
+                successDiv.style.display = 'block';
+                successText.textContent = 'Incident reported successfully!';
+                
+                document.getElementById('reportForm').reset();
+                setDefaultDate();
+                
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Report';
+                
+                successDiv.scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                errorText.textContent = error.message || 'Failed to submit incident';
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Report';
+            }
+        });
+    </script>
+</body>
+</html>

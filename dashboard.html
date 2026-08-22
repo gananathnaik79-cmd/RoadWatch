@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - RoadWatch</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="dashboard.html" class="nav-brand">
+                <i class="fas fa-car-side"></i>
+                RoadWatch
+            </a>
+            
+            <button class="mobile-toggle" onclick="document.getElementById('navMenu').classList.toggle('active')">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="nav-menu" id="navMenu">
+                <a href="dashboard.html" class="nav-link active">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="map.html" class="nav-link">
+                    <i class="fas fa-map-marked-alt"></i> Crime Map
+                </a>
+                <a href="search.html" class="nav-link">
+                    <i class="fas fa-search"></i> Search
+                </a>
+                <a href="statistics.html" class="nav-link">
+                    <i class="fas fa-chart-bar"></i> Statistics
+                </a>
+                <a href="incidents.html" class="nav-link">
+                    <i class="fas fa-exclamation-triangle"></i> Incidents
+                </a>
+                <a href="report.html" class="nav-link">
+                    <i class="fas fa-pen"></i> Report
+                </a>
+            </div>
+            
+            <div class="nav-user">
+                <span class="user-email" id="userEmail"></span>
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-tachometer-alt"></i> 
+                Dashboard
+            </h1>
+            <p>Vehicle Crime Awareness & Incident Monitoring</p>
+        </div>
+
+        <div id="loading" style="text-align:center; padding:40px;">
+            <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#ef4444;"></i>
+            <p style="margin-top:10px; color:#64748b;">Loading incidents...</p>
+        </div>
+
+        <div id="summaryCards" style="display:none;">
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="card-icon red"><i class="fas fa-list"></i></div>
+                    <h3>Total Incidents</h3>
+                    <p id="totalIncidents">0</p>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
+                    <h3>High Severity</h3>
+                    <p id="highSeverity">0</p>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon blue"><i class="fas fa-car"></i></div>
+                    <h3>Vehicle Thefts</h3>
+                    <p id="vehicleThefts">0</p>
+                </div>
+                <div class="summary-card">
+                    <div class="card-icon green"><i class="fas fa-city"></i></div>
+                    <h3>Suburbs Affected</h3>
+                    <p id="suburbsAffected">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="recentSection" style="display:none;">
+            <div class="card">
+                <h2 style="margin-bottom:16px;">
+                    <i class="fas fa-clock" style="color:#ef4444;"></i> 
+                    Recent Incidents
+                </h2>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Crime Type</th>
+                                <th>Suburb</th>
+                                <th>Vehicle</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incidentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        window.addEventListener('load', function() {
+            
+            var supabaseClient = window.supabase.createClient(
+                'https://rrmhrxfnakeizqbwkgdc.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJybWhyeGZuYWtlaXpxYndrZ2RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczNzM2OTUsImV4cCI6MjEwMjk0OTY5NX0.dngDwQGHif4nsdI62PeNwpJTnAXBhMK3pxaXcjjEDbk'
+            );
+            
+            // Check auth
+            supabaseClient.auth.getSession().then(function(result) {
+                console.log('Session:', result);
+                
+                if (result.data && result.data.session) {
+                    document.getElementById('userEmail').textContent = result.data.session.user.email;
+                    loadDashboard(supabaseClient);
+                } else {
+                    window.location.href = 'login.html';
+                }
+            }).catch(function(error) {
+                console.error('Auth error:', error);
+                window.location.href = 'login.html';
+            });
+        });
+
+        function logout() {
+            var supabaseClient = window.supabase.createClient(
+                'https://rrmhrxfnakeizqbwkgdc.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJybWhyeGZuYWtlaXpxYndrZ2RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczNzM2OTUsImV4cCI6MjEwMjk0OTY5NX0.dngDwQGHif4nsdI62PeNwpJTnAXBhMK3pxaXcjjEDbk'
+            );
+            
+            supabaseClient.auth.signOut().then(function() {
+                window.location.href = 'login.html';
+            });
+        }
+
+        async function loadDashboard(supabaseClient) {
+            try {
+                var result = await supabaseClient
+                    .from('roadwatch_incidents')
+                    .select('*')
+                    .order('incident_date', { ascending: false });
+
+                if (result.error) throw result.error;
+
+                var incidents = result.data || [];
+                
+                console.log('Incidents loaded:', incidents.length);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('summaryCards').style.display = 'block';
+                document.getElementById('recentSection').style.display = 'block';
+
+                document.getElementById('totalIncidents').textContent = incidents.length;
+                
+                var highCount = incidents.filter(function(i) { 
+                    return i.incident_severity === 'High'; 
+                }).length;
+                document.getElementById('highSeverity').textContent = highCount;
+                
+                var theftCount = incidents.filter(function(i) { 
+                    return i.crime_type && i.crime_type.toLowerCase().includes('theft'); 
+                }).length;
+                document.getElementById('vehicleThefts').textContent = theftCount;
+                
+                var suburbs = {};
+                incidents.forEach(function(i) { 
+                    if (i.suburb) suburbs[i.suburb] = true; 
+                });
+                document.getElementById('suburbsAffected').textContent = Object.keys(suburbs).length;
+
+                var html = '';
+                incidents.slice(0, 10).forEach(function(i) {
+                    html += '<tr>';
+                    html += '<td>' + (i.incident_date || 'N/A') + '</td>';
+                    html += '<td>' + (i.crime_type || 'N/A') + '</td>';
+                    html += '<td>' + (i.suburb || 'N/A') + '</td>';
+                    html += '<td>' + (i.car_make || 'N/A') + '</td>';
+                    html += '<td>' + (i.incident_severity || 'N/A') + '</td>';
+                    html += '<td>' + (i.verification_status || 'N/A') + '</td>';
+                    html += '</tr>';
+                });
+                
+                document.getElementById('incidentsTable').innerHTML = html;
+
+            } catch (error) {
+                console.error('Dashboard error:', error);
+                document.getElementById('loading').innerHTML = 
+                    '<p style="color:#ef4444;">Error: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>
